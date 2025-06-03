@@ -3,8 +3,7 @@
 requests
 tkinter-page
 customtkinter 
-# requests-oauthlib
+PIL
 pillow
 ImageTk
 woocommerce
-Cython
