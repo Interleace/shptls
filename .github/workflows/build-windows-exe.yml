@@ -36,7 +36,9 @@ jobs:
 
     - name: Build EXE
       run: |
-        $APP_NAME = if ($env:APP_NAME) { $env:APP_NAME } else { "App" }
+        #$APP_NAME = if ($env:APP_NAME) { $env:APP_NAME } else { "App" }
+        $TAG = "${{ github.ref_name }}"
+        $APP_NAME = "${env:APP_BASE}-${TAG}"
         pyinstaller --onefile --noconsole --add-data "config.json;." --name $APP_NAME --clean main.py
       shell: pwsh
       env:
