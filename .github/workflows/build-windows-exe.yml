@@ -25,7 +25,10 @@ jobs:
       run: |
         pip install --no-cache-dir pyinstaller
         if (Test-Path requirements.txt) { pip install -r requirements.txt }
-    
+
+    - name: Generate dummy config.json from template
+      run: cp config.json.template config.json
+
     - name: Build EXE
       run: |
         $APP_NAME = if ($env:APP_NAME) { $env:APP_NAME } else { "App" }
