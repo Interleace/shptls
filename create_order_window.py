@@ -230,13 +230,26 @@ class CreateOrderWindow(ctk.CTkToplevel):
             font=ctk.CTkFont(size=16, weight="bold")
         ).pack(anchor="w", padx=20, pady=(20, 10))
 
+        # Frame for buttons (search and custom product)
+        button_row_frame = ctk.CTkFrame(products_frame, fg_color="transparent") # Use transparent frame
+        button_row_frame.pack(fill="x", padx=20, pady=(0, 10))
+
         # Button zum Öffnen des Produkt-Suchdialogs
         open_search_button = ctk.CTkButton(
-            products_frame,
+            button_row_frame,
             text="Produkte suchen und hinzufügen",
             command=self.open_product_search_dialog
         )
-        open_search_button.pack(padx=20, pady=(0, 10), anchor="e")
+        open_search_button.pack(side="left", padx=(0, 10)) # Pack to the left
+
+        # Button zum Hinzufügen eines eigenen Produkts
+        add_custom_product_button = ctk.CTkButton(
+            button_row_frame,
+            text="Eigenes Produkt hinzufügen",
+            command=self.open_custom_product_dialog # New command
+        )
+        add_custom_product_button.pack(side="left") # Pack next to search button
+
 
         # Ausgewählte Produkte Liste (jetzt ein Treeview)
         self.products_tree = ttk.Treeview(
@@ -334,6 +347,16 @@ class CreateOrderWindow(ctk.CTkToplevel):
 
                 self.selected_products.append(product_data)
             self.update_selected_products_treeview() # Update the display in CreateOrderWindow
+
+    def open_custom_product_dialog(self):
+        """Öffnet den Dialog zum Hinzufügen eines benutzerdefinierten Produkts."""
+        dialog = CustomProductDialog(self)
+        self.wait_window(dialog)
+
+        if dialog.result: # If the user clicked OK or Anyway and a product was defined
+            self.selected_products.append(dialog.result)
+            self.update_selected_products_treeview()
+
 
     def update_selected_products_treeview(self):
         """Aktualisiert die Treeview der ausgewählten Produkte"""
@@ -487,7 +510,7 @@ class CreateOrderWindow(ctk.CTkToplevel):
                     current_product_price = float(selected_product_data.get('price', 0.0))
                 except (ValueError, TypeError):
                     current_product_price = 0.0
-                    print(f"Warning: Invalid price for product {selected_product_data.get('name')} during order creation.")
+                    print(f"Warning: Non-numeric price for product {selected_product_data.get('name')} during order creation.")
 
                 products_subtotal += current_product_price * line_item['quantity']
 
@@ -500,7 +523,11 @@ class CreateOrderWindow(ctk.CTkToplevel):
                     # Typically, 'total' and 'subtotal' are calculated by WC.
                 else:
                     line_item['name'] = selected_product_data.get('name', 'Benutzerdefiniertes Produkt')
-                    line_item['price'] = str(current_product_price) # Unit price for custom item
+                    line_item['price'] = f"{current_product_price:.2f}" # Unit price for custom item, formatted to 2 decimals
+                    line_item['sku'] = selected_product_data.get('sku', '') # Ensure SKU is included for custom products
+                    # Explicitly add total for custom products to ensure correct calculation on WC side
+                    line_item['total'] = f"{(current_product_price * quantity):.2f}"
+
 
                 order_data['line_items'].append(line_item)
 
@@ -636,12 +663,26 @@ class EditProductDialog(ctk.CTkToplevel):
             self.price_entry = ctk.CTkEntry(input_frame)
             self.price_entry.grid(row=1, column=1, sticky="ew", pady=(0,15))
             self.price_entry.insert(0, f"{float(self.product_data.get('price', 0.0)):.2f}")
+
+            # SKU field for custom products in edit mode
+            ctk.CTkLabel(input_frame, text="SKU:").grid(row=2, column=0, sticky="w", padx=(0,10), pady=(0,15))
+            self.sku_entry = ctk.CTkEntry(input_frame)
+            self.sku_entry.grid(row=2, column=1, sticky="ew", pady=(0,15))
+            self.sku_entry.insert(0, self.product_data.get('sku', ''))
+
         else:
             # Display price but make it clear it's not editable here for standard products
             ctk.CTkLabel(input_frame, text="Einzelpreis (€):").grid(row=1, column=0, sticky="w", padx=(0,10), pady=(0,15))
             price_display = ctk.CTkLabel(input_frame, text=f"{float(self.product_data.get('price', 0.0)):.2f} (nicht bearbeitbar)")
             price_display.grid(row=1, column=1, sticky="ew", pady=(0,15))
             self.price_entry = None
+
+            # Display SKU but make it clear it's not editable here for standard products
+            ctk.CTkLabel(input_frame, text="SKU:").grid(row=2, column=0, sticky="w", padx=(0,10), pady=(0,15))
+            sku_display = ctk.CTkLabel(input_frame, text=self.product_data.get('sku', 'N/A') + " (nicht bearbeitbar)")
+            sku_display.grid(row=2, column=1, sticky="ew", pady=(0,15))
+            self.sku_entry = None
+
 
         input_frame.grid_columnconfigure(1, weight=1)
 
@@ -688,6 +729,8 @@ class EditProductDialog(ctk.CTkToplevel):
             elif 'price' in self.product_data: # If price entry is disabled, keep original price
                  self.result['price'] = float(self.product_data.get('price',0.0))
 
+            if self.sku_entry: # If SKU entry exists (for custom products)
+                self.result['sku'] = self.sku_entry.get().strip()
 
             self.destroy()
 
@@ -695,17 +738,14 @@ class EditProductDialog(ctk.CTkToplevel):
             msgbox.showerror("Fehler", "Ungültige Menge eingegeben. Bitte eine ganze Zahl eingeben.", parent=self)
 
 
-class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated, ensure correct one is used. Assuming the one from product_search_dialog.py is primary for adding new custom products.
-                                          # The one defined below might be an older version or intended for a different purpose.
-                                          # For this fix, I am assuming this one is not the primary one used by "add_custom_product" in ProductSearchDialog.
-                                          # If this is used by CreateOrderWindow directly, it might need similar UI fixes as EditProductDialog.
+class CustomProductDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
 
         self.result = None
 
         self.title("Benutzerdefiniertes Produkt")
-        self.geometry("400x350") # Increased height
+        self.geometry("400x380") # Increased height
         self.resizable(False, False)
         self.transient(parent)
 
@@ -743,8 +783,14 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
         # Menge
         ctk.CTkLabel(input_frame, text="Menge:").grid(row=2, column=0, sticky="w", padx=(0,10), pady=(0,5))
         self.quantity_entry = ctk.CTkEntry(input_frame) # Removed width=80 to allow expansion
-        self.quantity_entry.grid(row=2, column=1, sticky="ew", pady=(0,15))
+        self.quantity_entry.grid(row=2, column=1, sticky="ew", pady=(0,10))
         self.quantity_entry.insert(0, "1")
+
+        # SKU
+        ctk.CTkLabel(input_frame, text="SKU:").grid(row=3, column=0, sticky="w", padx=(0,10), pady=(0,5))
+        self.sku_entry = ctk.CTkEntry(input_frame, placeholder_text="SKU")
+        self.sku_entry.grid(row=3, column=1, sticky="ew", pady=(0,15))
+
 
         input_frame.grid_columnconfigure(1, weight=1)
 
@@ -755,8 +801,6 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
         ok_button = ctk.CTkButton( button_frame, text="OK", command=self.ok_clicked )
         ok_button.pack(side="left", expand=True, padx=5, pady=5)
 
-        # "Egal" Button - consider if this button's logic is still desired or if stricter validation is preferred.
-        # For this example, keeping its functionality.
         anyway_button = ctk.CTkButton( button_frame, text="Egal (mit Standardwerten)", command=self.anyway_clicked)
         anyway_button.pack(side="left", expand=True, padx=5, pady=5)
 
@@ -769,6 +813,7 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
             name = self.name_entry.get().strip()
             price_str = self.price_entry.get().strip()
             quantity_str = self.quantity_entry.get().strip()
+            sku = self.sku_entry.get().strip() # Get SKU
 
 
             if not name:
@@ -796,11 +841,11 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
 
             self.result = {
                 'name': name,
-                'price': price,
+                'price': price, # Here 'price' is a float
                 'quantity': quantity,
                 'is_custom_product': True,
                 'id': 0,
-                'sku': 'CUSTOM'
+                'sku': sku
             }
             self.destroy()
 
@@ -812,11 +857,13 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
         name = self.name_entry.get().strip()
         price_str = self.price_entry.get().strip()
         quantity_str = self.quantity_entry.get().strip()
+        sku = self.sku_entry.get().strip() # Get SKU
 
         warning_messages = []
         final_name = name
         final_price = 0.0
         final_quantity = 1
+        final_sku = sku # Initialize with entered SKU
 
         if not final_name:
             warning_messages.append("Produktname ist leer. Wird auf 'Benutzerdefiniertes Produkt (unbenannt)' gesetzt.")
@@ -840,6 +887,10 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
             warning_messages.append(f"Ungültige Menge '{quantity_str}'. Wird auf 1 gesetzt.")
             final_quantity = 1
 
+        if not final_sku:
+            warning_messages.append("SKU ist leer. Wird auf 'CUSTOM_SKU' gesetzt.")
+            final_sku = "CUSTOM_SKU"
+
         if warning_messages:
             full_warning = "Folgende Probleme wurden erkannt und Standardwerte verwendet:\n\n" + "\n".join(warning_messages) + "\n\nMöchten Sie trotzdem fortfahren?"
             if not msgbox.askyesno("Warnung", full_warning, parent=self):
@@ -851,6 +902,6 @@ class CustomProductDialog(ctk.CTkToplevel): # This class seems to be duplicated,
             'quantity': final_quantity,
             'is_custom_product': True,
             'id': 0,
-            'sku': 'CUSTOM'
+            'sku': final_sku # Include the final SKU
         }
         self.destroy()
