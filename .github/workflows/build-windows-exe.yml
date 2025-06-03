@@ -25,7 +25,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install --no-cache-dir pyinstaller
-        if exist requirements.txt ( pip install -r requirements.txt )
+        if (exist requirements.txt ( pip install -r requirements.txt ))
 
     - name: Build EXE with PyInstaller
       run: |
