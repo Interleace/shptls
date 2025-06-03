@@ -4,5 +4,4 @@ requests
 tkinter-page
 customtkinter 
 pillow
-ImageTk
 woocommerce
