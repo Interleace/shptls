@@ -34,15 +34,19 @@ jobs:
       run: Copy-Item config.json.template config.json
       shell: pwsh
 
+    - name: Read version
+      id: version
+      run: echo "version=$(Get-Content version.txt)" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
     - name: Build EXE
       run: |
-        #$APP_NAME = if ($env:APP_NAME) { $env:APP_NAME } else { "App" }
-        $TAG = "${{ github.ref_name }}"
-        $APP_NAME = "${env:APP_BASE}-${TAG}"
+        $VERSION = "${{ steps.version.outputs.version }}"
+        $APP_NAME = "${env:APP_BASE}-v$VERSION"
         pyinstaller --onefile --noconsole --add-data "config.json;." --name $APP_NAME --clean main.py
       shell: pwsh
       env:
-        APP_NAME: ${{ github.event.repository.name }}
+        APP_BASE: ${{ github.event.repository.name }}
 
     - name: Upload EXE as Artifact
       uses: actions/upload-artifact@v4
@@ -54,8 +58,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: Release v1.0.${{ github.run_number }}
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
         files: dist/*.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
