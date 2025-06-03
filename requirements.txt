@@ -7,3 +7,4 @@ customtkinter
 pillow
 ImageTk
 woocommerce
+Cython
