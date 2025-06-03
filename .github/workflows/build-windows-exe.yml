@@ -39,9 +39,19 @@ jobs:
       env:
         APP_NAME: ${{ github.event.repository.name }}
 
-    - name: Upload EXE
+    - name: Upload EXE as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-exe
         path: dist/*.exe
         retention-days: 30
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        files: dist/*.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: github.event_name == 'workflow_dispatch'
