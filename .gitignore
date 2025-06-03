@@ -1,2 +1,6 @@
 config.json
 Bestellungen.spec
+venv
+dist
+build
+app.py
