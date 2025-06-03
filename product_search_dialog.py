@@ -18,7 +18,7 @@ class ProductSearchDialog(ctk.CTkToplevel):
         self.total_products = 0 # To store total products for pagination
 
         self.title("Produkte suchen und auswählen")
-        self.geometry("800x700")
+        self.geometry("800x500")
         self.resizable(True, True)
         self.transient(parent)
 
@@ -91,9 +91,6 @@ class ProductSearchDialog(ctk.CTkToplevel):
 
         add_selected_button = ctk.CTkButton(button_frame, text="Ausgewählte Produkte hinzufügen", command=self.add_selected_products)
         add_selected_button.pack(side="left", padx=10)
-
-        add_custom_button = ctk.CTkButton(button_frame, text="Eigenes Produkt hinzufügen", command=self.add_custom_product)
-        add_custom_button.pack(side="left", padx=10)
 
         cancel_button = ctk.CTkButton(button_frame, text="Abbrechen", command=self.destroy)
         cancel_button.pack(side="right", padx=10)
@@ -210,20 +207,6 @@ class ProductSearchDialog(ctk.CTkToplevel):
                 'quantity': 1 # Default quantity when adding to order
             })
         self.destroy()
-
-    def add_custom_product(self):
-        # Implement a dialog to get custom product details (name, price, quantity)
-        dialog = CustomProductDialog(self)
-        self.wait_window(dialog)
-        if dialog.result:
-            custom_product = dialog.result
-            custom_product['id'] = 0 # Indicate it's not a WooCommerce product ID
-            custom_product['sku'] = "CUSTOM"
-            custom_product['stock_quantity'] = 9999 # Arbitrarily high for custom
-            custom_product['is_custom_product'] = True # Flag for later distinction
-            self.result.append(custom_product)
-            self.destroy()
-
 
     def show_loading(self, show):
         """Loading Indicator anzeigen/verstecken"""

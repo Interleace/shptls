@@ -745,7 +745,7 @@ class CustomProductDialog(ctk.CTkToplevel):
         self.result = None
 
         self.title("Benutzerdefiniertes Produkt")
-        self.geometry("400x380") # Increased height
+        self.geometry("500x380") # Increased height
         self.resizable(False, False)
         self.transient(parent)
 
