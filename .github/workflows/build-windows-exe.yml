@@ -1,0 +1,40 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: pip
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install --no-cache-dir pyinstaller
+        if exist requirements.txt ( pip install -r requirements.txt )
+
+    - name: Build EXE with PyInstaller
+      run: |
+        set APP_NAME=${{ github.event.repository.name }}
+        pyinstaller --onefile --noconsole --add-data "config.json;." --name %APP_NAME% --clean main.py
+
+    - name: Upload EXE Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-exe
+        path: dist/*.exe
+        retention-days: 30
