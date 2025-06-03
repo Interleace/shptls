@@ -2,5 +2,8 @@
 # Beispiele für WooCommerce/GUI Apps:
 requests
 tkinter-page
+customtkinter 
 # requests-oauthlib
-# pillow
+pillow
+ImageTk
+woocommerce
