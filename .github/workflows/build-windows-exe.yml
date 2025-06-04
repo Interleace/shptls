@@ -2,9 +2,7 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ main, master, ui ]
-  pull_request:
-    branches: [ main, master, ui ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +15,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Tags müssen vorhanden sein
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -34,27 +34,18 @@ jobs:
       run: Copy-Item config.json.template config.json
       shell: pwsh
 
-    - name: Determine version
-      id: version
-      shell: pwsh
+    - name: Set version from tag
+      id: get_version
       run: |
-        if (Test-Path version.txt) {
-          $version = Get-Content version.txt
-        } else {
-          try {
-            $response = Invoke-RestMethod https://api.github.com/repos/Interleace/shptls/releases/latest
-            $version = $response.tag_name
-          } catch {
-            $version = "1.0.${{ github.run_number }}"
-          }
-        }
-        echo "version=$version" >> $env:GITHUB_OUTPUT
-        Set-Content -Path version.txt -Value $version
+        $tag = git describe --tags --abbrev=0
+        echo "__version__ = '`"$tag`"'" | Out-File -Encoding utf8 version.py
+        echo "version=$tag" >> $env:GITHUB_OUTPUT
+      shell: pwsh
 
     - name: Build EXE
       run: |
-        $VERSION = "${{ steps.version.outputs.version }}"
-        $APP_NAME = "${env:APP_BASE}-v$VERSION"
+        $VERSION = "${{ steps.get_version.outputs.version }}"
+        $APP_NAME = "${env:APP_BASE}-$VERSION"
         pyinstaller --onefile --noconsole --add-data "config.json;." --name $APP_NAME --clean main.py
       shell: pwsh
       env:
@@ -70,9 +61,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ steps.version.outputs.version }}
-        name: Release v${{ steps.version.outputs.version }}
+        tag_name: ${{ steps.get_version.outputs.version }}
+        name: Release ${{ steps.get_version.outputs.version }}
         files: dist/*.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      if: github.event_name == 'workflow_dispatch'
