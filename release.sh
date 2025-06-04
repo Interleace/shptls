@@ -23,6 +23,6 @@ git tag "$new_tag"
 #git push origin HEAD
 #git push origin "$new_tag"
 git push
-git push "$new_tag"
+git push origin "$new_tag"
 
 echo "✅ Release $new_tag veröffentlicht und gepusht!"
