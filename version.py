@@ -1,7 +1,7 @@
 from pathlib import Path
 import requests
 
-VERSION_FILE = Path("version.txt")
+__version__ = None  # immer global definieren!
 
 def get_latest_release_version():
     api_url = "https://api.github.com/repos/Interleace/shptls/releases/latest"
@@ -14,22 +14,16 @@ def get_latest_release_version():
         print(f"Fehler beim Laden der Release-Version von GitHub: {e}")
         return None
 
-def read_local_version():
-    if VERSION_FILE.is_file():
-        with open(VERSION_FILE, "r") as f:
-            return f.read().strip()
-    return None
+my_file = Path("version.txt")
 
-def write_local_version(version):
-    with open(VERSION_FILE, "w") as f:
-        f.write(version)
+if my_file.is_file():
+    try:
+        with open(my_file) as f:
+            __version__ = f.read().strip()
+    except Exception as e:
+        print(f"Fehler beim Lesen von version.txt: {e}")
+else:
+    __version__ = get_latest_release_version()
 
-def get_current_version():
-    local_version = read_local_version()
-    if local_version:
-        return local_version
-    latest = get_latest_release_version()
-    if latest:
-        write_local_version(latest)
-        return latest
-    return "0.0.0"  # fallback
+if not __version__:
+    __version__ = "0.0.0"  # Fallback-Version
