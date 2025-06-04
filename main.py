@@ -1,17 +1,18 @@
 import customtkinter as ctk
 from main_window import MainWindow
 from config import Config
-from version import __version__
-import updater
+from version import get_current_version, check_for_update_and_handle
 
-if __name__ == "__main__":
-    print(f"Version: {__version__}")
-
-    # Vor dem Start prüfen und ggf. updaten
-    updater.main_update_check(__version__)
+def main():
+    current_version = get_current_version()
+    print(f"Aktuelle Version: {current_version}")
+    check_for_update_and_handle(current_version)
 
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
 
     app = MainWindow()
     app.mainloop()
+
+if __name__ == "__main__":
+    main()

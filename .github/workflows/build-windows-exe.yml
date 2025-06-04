@@ -34,10 +34,22 @@ jobs:
       run: Copy-Item config.json.template config.json
       shell: pwsh
 
-    - name: Read version
+    - name: Determine version
       id: version
-      run: echo "version=$(Get-Content version.txt)" >> $env:GITHUB_OUTPUT
       shell: pwsh
+      run: |
+        if (Test-Path version.txt) {
+          $version = Get-Content version.txt
+        } else {
+          try {
+            $response = Invoke-RestMethod https://api.github.com/repos/Interleace/shptls/releases/latest
+            $version = $response.tag_name
+          } catch {
+            $version = "1.0.${{ github.run_number }}"
+          }
+        }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        Set-Content -Path version.txt -Value $version
 
     - name: Build EXE
       run: |
