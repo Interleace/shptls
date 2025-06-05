@@ -77,3 +77,19 @@ class WooCommerceAPI:
             return self._make_request('PUT', f'orders/{order_id}', {'status': new_status})
         except Exception as e:
             raise Exception(f"Fehler beim Aktualisieren des Bestellstatus: {str(e)}")
+
+
+    def download_invoice_pdf(self, order_id, save_path):
+        """
+        Lädt die PDF-Rechnung für eine Bestellung herunter.
+        Erfordert ein WooCommerce PDF Plugin wie "WooCommerce PDF Invoices & Packing Slips".
+        """
+        invoice_url = f"{self.url}/wp-admin/admin-ajax.php?action=generate_wpo_wcpdf&document_type=invoice&order_ids={order_id}"
+
+        response = requests.get(invoice_url, auth=HTTPBasicAuth(self.consumer_key, self.consumer_secret))
+        if response.status_code == 200:
+            with open(save_path, 'wb') as f:
+                f.write(response.content)
+            return True
+        else:
+            raise Exception(f"Fehler beim Abrufen der Rechnung (Statuscode {response.status_code})")
