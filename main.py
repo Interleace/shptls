@@ -1,7 +1,7 @@
+from version import get_current_version, check_for_update_and_handle
 import customtkinter as ctk
 from main_window import MainWindow
 from config import Config
-from version import get_current_version, check_for_update_and_handle
 
 def main():
     current_version = get_current_version()
