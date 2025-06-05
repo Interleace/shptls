@@ -22,7 +22,7 @@ git commit -m "Release $new_tag"
 git tag "$new_tag"
 #git push origin HEAD
 #git push origin "$new_tag"
-git push
+#git push
 git push origin "$new_tag"
 
 echo "✅ Release $new_tag veröffentlicht und gepusht!"

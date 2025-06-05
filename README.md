@@ -1,3 +1,6 @@
+# Shop-Tool for viewing and creating orders for WooCommerce
+As a feature one can create custom items and custom discounts for each order
+
 ## Configuration
 
 To run the application, you need to set up your WooCommerce API credentials.
