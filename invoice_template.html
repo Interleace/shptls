@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Rechnung #{{ order.id }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #333; font-size: 14px; line-height: 1.6; }
+        .container { max-width: 800px; margin: auto; }
+        .invoice-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #eee; padding-bottom: 20px; margin-bottom: 40px; }
+        .company-info h1 { margin: 0; font-size: 24px; color: #000; }
+        .company-info p { margin: 5px 0 0 0; color: #666; }
+        .invoice-info { text-align: right; }
+        .invoice-info h2 { margin: 0; font-size: 28px; color: #000; }
+        .invoice-info p { margin: 5px 0 0 0; font-size: 14px; color: #666; }
+        .addresses { display: flex; justify-content: space-between; margin-bottom: 40px; }
+        .address-box { background-color: #f9f9f9; padding: 20px; border-radius: 5px; width: 48%; }
+        .address-box h3 { margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 10px; font-size: 16px; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .items-table th { background-color: #f2f2f2; text-align: left; padding: 12px; font-weight: bold; border-bottom: 2px solid #ddd; }
+        .items-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .items-table .text-right { text-align: right; }
+        .totals { float: right; width: 40%; }
+        .totals table { width: 100%; }
+        .totals td { padding: 10px 0; }
+        .totals .text-right { text-align: right; }
+        .totals .total-row td { font-weight: bold; font-size: 1.2em; border-top: 2px solid #333; padding-top: 15px; }
+        .footer { clear: both; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777; }
+        .footer h4 { color: #333; }
+        .footer pre { font-family: inherit; white-space: pre-wrap; margin: 10px 0; background-color: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #eee; }
+        .footer b { color: #000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="invoice-header">
+            <div class="company-info">
+                <h1>{{ store_name }}</h1>
+		<p>{{ store_address | replace('\n', '<br>') | safe }}</p>
+            </div>
+            <div class="invoice-info">
+                <h2>RECHNUNG</h2>
+                <p>#{{ order.id }}</p>
+                <p><strong>Rechnungsdatum:</strong> {{ invoice_date }}</p>
+                <p><strong>Bestelldatum:</strong> {{ order_date }}</p>
+            </div>
+        </div>
+
+        <div class="addresses">
+             <div class="address-box">
+                <h3>Rechnungsadresse</h3>
+                <p>
+                    <strong>{{ billing.first_name }} {{ billing.last_name }}</strong><br>
+                    {% if billing.company %}{{ billing.company }}<br>{% endif %}
+                    {{ billing.address_1 }}<br>
+                    {% if billing.address_2 %}{{ billing.address_2 }}<br>{% endif %}
+                    {{ billing.postcode }} {{ billing.city }}<br>
+                    {{ billing.country }}
+                </p>
+            </div>
+            {% if shipping and (shipping.address_1 != billing.address_1 or shipping.first_name != billing.first_name) %}
+            <div class="address-box">
+                <h3>Lieferadresse</h3>
+                <p>
+                    <strong>{{ shipping.first_name }} {{ shipping.last_name }}</strong><br>
+                    {% if shipping.company %}{{ shipping.company }}<br>{% endif %}
+                    {{ shipping.address_1 }}<br>
+                    {% if shipping.address_2 %}{{ shipping.address_2 }}<br>{% endif %}
+                    {{ shipping.postcode }} {{ shipping.city }}<br>
+                    {{ shipping.country }}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Artikel</th>
+                    <th class="text-right">Menge</th>
+                    <th class="text-right">Einzelpreis</th>
+                    <th class="text-right">Gesamt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in line_items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td class="text-right">{{ item.quantity }}</td>
+                    <td class="text-right">{{ "%.2f"|format(item.price|float) }} {{ currency_symbol }}</td>
+                    <td class="text-right">{{ item.total }} {{ currency_symbol }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <table>
+                <tr>
+                    <td>Zwischensumme</td>
+                    <td class="text-right">{{ "%.2f"|format(order.total|float - order.total_tax|float) }} {{ currency_symbol }}</td>
+                </tr>
+                {% for shipping_line in shipping_lines %}
+                <tr>
+                    <td>{{ shipping_line.method_title }}</td>
+                    <td class="text-right">{{ shipping_line.total }} {{ currency_symbol }}</td>
+                </tr>
+                {% endfor %}
+                {% if order.total_tax|float > 0 %}
+                <tr>
+                    <td>MwSt ({{ tax_rate }}%)</td>
+                    <td class="text-right">{{ order.total_tax }} {{ currency_symbol }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <td>Gesamtsumme</td>
+                    <td class="text-right">{{ order.total }} {{ currency_symbol }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p><strong>Zahlungsweise:</strong> {{ order.payment_method_title }}</p>
+            {% if order.customer_note %}
+            <p><strong>Kundennotiz:</strong> {{ order.customer_note }}</p>
+            {% endif %}
+            <hr>
+            <h4>Kauf auf Rechnung</h4>
+            <p>Bezahlen Sie nach Erhalt der Lieferung hier mit Kreditkarte, Überweisung oder PayPal: <a href="https://bit.ly/Buchrechnung">https://bit.ly/Buchrechnung</a></p>
+            <p>PayPal-Zahlungen können auch direkt gesendet werden an: <a href="https://www.paypal.com/paypalme/ARIBildung">https://www.paypal.com/paypalme/ARIBildung</a></p>
+            <p>oder überweisen Sie den Rechnungsbetrag an unsere unten aufgeführte Bankverbindung:</p>
+            <pre><b>Kontoinhaber</b>: ARI-Bildungseinrichtung e.V.
+<b>IBAN</b>: DE33 1004 0000 0893 2212 00
+<b>BIC</b>: COBADEFFXXX
+<b>Bank</b>: Commerzbank Berlin
+<b>Rechnungs-Nr.</b>: #{{ order.id }}</pre>
+            <p><b>Geben Sie bitte immer die Rechnungsnummer als Betreff an!</b></p>
+            <p>Vielen Dank für Ihre Bestellung,<br>Ihr Kabbalabuch Service Team</p>
+            <hr>
+        </div>
+    </div>
+</body>
+</html>

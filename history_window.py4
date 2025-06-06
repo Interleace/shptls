@@ -341,53 +341,53 @@ class HistoryWindow(ctk.CTkToplevel):
 
 
     def print_invoice(self):
-        if not self.current_order:
-            msgbox.showwarning("Warnung", "Bitte wählen Sie eine Bestellung aus, für die eine Rechnung erstellt werden soll.")
+        selected_item = self.orders_tree.selection()
+        if not selected_item:
+            msgbox.showwarning("Warnung", "Bitte wählen Sie eine Bestellung aus, deren Rechnung gedruckt werden soll.")
             return
 
-        order_id = self.current_order.get('id')
+        order_id = self.orders_tree.item(selected_item[0], 'tags')[0]
         temp_dir = tempfile.gettempdir()
         pdf_final_path = os.path.join(temp_dir, f"invoice_{order_id}.pdf")
 
-        def _create_and_print():
+        def _download_and_print():
             self.after(0, lambda: self.show_loading(True))
-            creation_result = None
+            download_result = None
             try:
-                msgbox.showinfo("Druckvorgang", "Rechnung wird aus Bestelldetails lokal erstellt. Bitte warten...")
-                
-                # Lokale Rechnungserstellung mit den vorhandenen Bestelldetails
-                creation_result = self.woo_api.create_invoice_pdf(self.current_order, pdf_final_path)
+                msgbox.showinfo("Druckvorgang", "Rechnung wird heruntergeladen und gedruckt. Bitte warten...")
+                download_result = self.woo_api.download_invoice_pdf(order_id, pdf_final_path)
 
-                if creation_result is True:
-                    # Erfolgreich eine PDF erstellt
+                if download_result is True:
+                    # Successfully got PDF (either directly or converted)
                     self.after(0, lambda: self._print_pdf(pdf_final_path))
-                elif isinstance(creation_result, str) and os.path.exists(creation_result):
-                    # PDF-Erstellung schlug fehl, aber wir haben eine HTML-Datei
-                    self.after(0, lambda: self._handle_html_invoice(creation_result, order_id))
+                elif isinstance(download_result, str) and os.path.exists(download_result):
+                    # Received HTML and couldn't convert, download_result is the path to raw HTML
+                    self.after(0, lambda: self._handle_html_invoice(download_result, order_id))
                 else:
-                    # Fallback-Fehlermeldung
-                    self.after(0, lambda: msgbox.showerror("Fehler", "Rechnung konnte nicht erstellt werden."))
+                    self.after(0, lambda: msgbox.showerror("Fehler", "Rechnung konnte nicht heruntergeladen oder verarbeitet werden."))
 
             except Exception as e:
-                self.after(0, lambda: msgbox.showerror("Fehler bei Rechnungsstellung", f"Fehler beim Erstellen der PDF-Rechnung: {e}"))
+                self.after(0, lambda: msgbox.showerror("Druckfehler", f"Fehler beim Herunterladen oder Drucken der Rechnung: {e}"))
             finally:
                 self.after(0, lambda: self.show_loading(False))
-                # Temporäre PDF-Datei aufräumen
-                if creation_result is True and os.path.exists(pdf_final_path):
+                # Cleanup: remove pdf_final_path if it's a generated PDF
+                if download_result is True and os.path.exists(pdf_final_path):
                     try:
                         os.remove(pdf_final_path)
-                    except OSError as e_os:
-                        print(f"Warnung: Temporäre PDF-Datei konnte nicht gelöscht werden: {e_os}")
+                    except OSError as e:
+                        print(f"Warnung: Temporäre PDF-Datei konnte nicht gelöscht werden: {e}")
+                # If download_result was a path to HTML, that should be handled by _handle_html_invoice
 
-        threading.Thread(target=_create_and_print, daemon=True).start()
+        threading.Thread(target=_download_and_print, daemon=True).start()
 
     def _handle_html_invoice(self, html_path, order_id):
         """
         Handles the case where the invoice was received as HTML and could not be converted to PDF.
         Offers to open the HTML in a browser for manual printing.
         """
-        response = msgbox.askyesno("Rechnung als HTML erstellt",
-                                    f"Die Rechnung wurde als HTML-Datei erstellt, konnte aber nicht automatisch in eine PDF-Datei konvertiert werden.\n\n"
+        response = msgbox.askyesno("Rechnung als HTML empfangen",
+                                    f"Der Server hat die Rechnung als HTML und nicht als PDF zurückgegeben. "
+                                    f"Es konnte nicht automatisch in PDF konvertiert werden.\n\n"
                                     f"Möchten Sie die HTML-Rechnung im Browser öffnen, um sie manuell zu drucken?")
         if response:
             try:
@@ -396,14 +396,15 @@ class HistoryWindow(ctk.CTkToplevel):
             except Exception as e:
                 msgbox.showerror("Fehler", f"Konnte HTML-Datei im Browser nicht öffnen: {e}")
             finally:
-                # Temporäre HTML-Datei aufräumen
+                # Clean up the raw HTML file after the user has been prompted
                 if os.path.exists(html_path):
                     try:
                         os.remove(html_path)
                     except OSError as e:
                         print(f"Warnung: Temporäre HTML-Datei ({html_path}) konnte nicht gelöscht werden: {e}")
         else:
-            # Temporäre HTML-Datei aufräumen, wenn der Benutzer sie nicht öffnet
+            msgbox.showerror("Druckfehler", "Rechnung konnte nicht gedruckt werden.")
+            # Clean up the raw HTML file if the user chooses not to open it
             if os.path.exists(html_path):
                 try:
                     os.remove(html_path)
@@ -414,18 +415,29 @@ class HistoryWindow(ctk.CTkToplevel):
         system = platform.system()
         try:
             if system == "Windows":
+                # Standard-Druckerinformationen für Debugging
                 printer_info = self._get_default_printer_info()
                 print(f"DEBUG: {printer_info}")
+
+                # win32api.ShellExecute printet im Hintergrund ohne Dialog
+                # 'print' ist der 'verb' für den Druckvorgang
+                # Achtung: Dies erfordert, dass eine Anwendung installiert ist,
+                # die PDF-Dateien drucken kann (z.B. Adobe Reader) und als Standard
+                # für .pdf-Dateien registriert ist.
                 result = win32api.ShellExecute(0, "print", pdf_path, None, ".", 0)
-                if result <= 32:
+                if result <= 32: # Ein Rückgabewert <= 32 bedeutet einen Fehler
                     raise Exception(f"ShellExecute Fehlercode: {result}. Stellen Sie sicher, dass ein PDF-Viewer als Standardprogramm festgelegt ist.")
                 msgbox.showinfo("Druckvorgang", f"Rechnung ({os.path.basename(pdf_path)}) an den Standarddrucker gesendet.")
 
             elif system == "Linux":
+                # Versucht, mit 'lp' (CUPS) zu drucken
+                # lp -d <printer_name> <file_path>
+                # Ohne -d wird der Systemstandarddrucker verwendet.
                 subprocess.run(["lp", pdf_path], check=True)
                 msgbox.showinfo("Druckvorgang", f"Rechnung ({os.path.basename(pdf_path)}) an den Standarddrucker gesendet (Linux).")
 
             elif system == "Darwin": # macOS
+                # Versucht, mit 'lpr' zu drucken
                 subprocess.run(["lpr", pdf_path], check=True)
                 msgbox.showinfo("Druckvorgang", f"Rechnung ({os.path.basename(pdf_path)}) an den Standarddrucker gesendet (macOS).")
 

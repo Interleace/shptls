@@ -1,4 +1,12 @@
 #!/bin/bash
+# This project uses GitHub Actions for deploying for Windows
+# After running this script and pushing the changes we're attatching
+# a version as a tag, after fetching the latest repo's release version
+# and incrementing. Than the action is triggered, binary created and
+# a new release is automatically deployed.
+#
+# Run always this script when sending changes to GitHub
+#
 set -e
 
 # Letztes Git-Tag holen

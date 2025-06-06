@@ -1,0 +1,194 @@
+import requests
+from requests.auth import HTTPBasicAuth
+import json
+from datetime import datetime
+import os
+import tempfile
+
+try:
+    import pdfkit
+except ImportError:
+    pdfkit = None
+
+class WooCommerceAPI:
+    def __init__(self, url, consumer_key, consumer_secret):
+        self.url = url.rstrip('/')
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
+        self.api_url = f"{self.url}/wp-json/wc/v2" # Standard WC API base
+        self.last_response_headers = {}
+
+    def _make_request(self, method, endpoint, data=None, params=None, full_url=None):
+        """HTTP Request an WooCommerce API senden oder eine volle URL anfragen."""
+        url = full_url if full_url else f"{self.api_url}/{endpoint}"
+        auth = HTTPBasicAuth(self.consumer_key, self.consumer_secret)
+        headers = {'Content-Type': 'application/json'} # Default for JSON APIs
+
+        # For direct file downloads or non-JSON APIs, clear default headers
+        if full_url:
+            headers = {} # Clear headers for direct URL requests to avoid issues
+
+        try:
+            response = None
+            if method == 'GET':
+                response = requests.get(url, auth=auth, headers=headers, params=params)
+            elif method == 'POST':
+                response = requests.post(url, auth=auth, headers=headers, json=data, params=params)
+            elif method == 'PUT':
+                response = requests.put(url, auth=auth, headers=headers, json=data, params=params)
+            elif method == 'DELETE':
+                response = requests.delete(url, auth=auth, headers=headers, params=params)
+
+            response.raise_for_status()
+            self.last_response_headers = response.headers
+            
+            # Try to return JSON if it's a typical API response, otherwise return raw content or text
+            if 'application/json' in response.headers.get('Content-Type', ''):
+                return response.json()
+            else:
+                return response # Return the full response object for non-JSON content
+        except requests.exceptions.RequestException as e:
+            if response is not None and response.status_code:
+                # Attempt to parse JSON error if available
+                try:
+                    error_detail = response.json()
+                    code = error_detail.get('code', 'unknown_error')
+                    message = error_detail.get('message', str(e))
+                except json.JSONDecodeError:
+                    code = 'http_error'
+                    message = response.text # Use raw text if not JSON
+                raise Exception(f"API Fehler ({response.status_code} - {code}): {message}")
+            else:
+                raise Exception(f"API Fehler: {str(e)}")
+
+    def test_connection(self):
+        """Verbindung zur API testen"""
+        try:
+            result = self._make_request('GET', 'system_status')
+            return True, "Verbindung erfolgreich"
+        except Exception as e:
+            return False, str(e)
+
+    def get_products(self, **kwargs): # Use kwargs to accept params like page, per_page, search, sku
+        """Produkte abrufen"""
+        try:
+            return self._make_request('GET', 'products', params=kwargs)
+        except Exception as e:
+            print(f"Fehler beim Abrufen der Produkte: {e}")
+            return []
+
+    def create_order(self, order_data):
+        """Bestellung erstellen"""
+        try:
+            return self._make_request('POST', 'orders', order_data)
+        except Exception as e:
+            raise Exception(f"Fehler beim Erstellen der Bestellung: {str(e)}")
+
+    def get_orders(self, **kwargs): # Use kwargs to accept params like page, per_page, status
+        """Bestellungen abrufen"""
+        try:
+            return self._make_request('GET', 'orders', params=kwargs)
+        except Exception as e:
+            print(f"Fehler beim Abrufen der Bestellungen: {e}")
+            return []
+
+    def update_order_status(self, order_id, new_status):
+        """Bestellstatus aktualisieren"""
+        try:
+            return self._make_request('PUT', f'orders/{order_id}', {'status': new_status})
+        except Exception as e:
+            raise Exception(f"Fehler beim Aktualisieren des Bestellstatus: {str(e)}")
+
+    def download_invoice_pdf(self, order_id, save_path):
+        """
+        Versucht, die PDF-Rechnung für eine Bestellung mit verschiedenen Methoden herunterzuladen.
+        Priorisiert Methoden basierend auf gängigen Plugin-Verhaltensweisen.
+        Gibt True zurück, wenn eine PDF erfolgreich gespeichert wurde (direkt oder konvertiert).
+        Gibt den Pfad zur temporären HTML-Datei zurück, wenn HTML empfangen wurde,
+        aber nicht in PDF konvertiert werden konnte.
+        Löst eine Exception bei anderen Fehlern oder wenn keine Methode erfolgreich ist.
+        """
+        temp_html_path = os.path.join(tempfile.gettempdir(), f"invoice_{order_id}_raw.html")
+
+        # Define a list of methods to try, with descriptions
+        # Order matters: try plugin-specific methods first, then more generic ones.
+        download_methods = [
+            {
+                "name": "Print Invoice & Delivery Notes (admin-ajax.php)",
+                "url": f"{self.url}/wp-admin/admin-ajax.php?action=print_order_document&order_id={order_id}&document_type=invoice",
+                "method": "GET"
+            },
+            {
+                "name": "WooCommerce REST API (orders/invoice endpoint)",
+                "url": f"{self.url}/wp-json/wc/v3/orders/{order_id}/invoice",
+                "method": "GET"
+            }
+            # If you switch to "WooCommerce PDF Invoices & Packing Slips" by WP Overnight,
+            # you would add this method here (uncomment and replace YOUR_ACCESS_KEY_HERE):
+            # {
+            #     "name": "WooCommerce PDF Invoices & Packing Slips (WPO_WC_PDF)",
+            #     "url": f"{self.url}/wp-admin/admin-ajax.php?action=generate_wpo_wcpdf&document_type=invoice&order_ids={order_id}&access_key=YOUR_ACCESS_KEY_HERE",
+            #     "method": "GET"
+            # }
+        ]
+
+        for method_info in download_methods:
+            print(f"DEBUG: Trying invoice download method: {method_info['name']}")
+            try:
+                # Use requests.get directly here for full control over auth and headers
+                # The _make_request method is more for typical JSON API calls
+                response = requests.get(method_info['url'], auth=HTTPBasicAuth(self.consumer_key, self.consumer_secret))
+                
+                print(f"DEBUG: Invoice Download - Method '{method_info['name']}' - Status Code: {response.status_code}")
+                print(f"DEBUG: Invoice Download - Method '{method_info['name']}' - Content-Type: {response.headers.get('Content-Type', 'N/A')}")
+
+                if response.status_code == 200:
+                    content_type = response.headers.get('Content-Type', '')
+
+                    if 'application/pdf' in content_type:
+                        with open(save_path, 'wb') as f:
+                            f.write(response.content)
+                        print(f"DEBUG: Invoice successfully downloaded as PDF via '{method_info['name']}' to {save_path}")
+                        return True # Success: PDF directly
+                    elif 'text/html' in content_type:
+                        # Check if the HTML content is just "0" or an empty string, which indicates failure
+                        # This specifically addresses the "0" issue encountered earlier
+                        if response.text.strip() == "0" or not response.text.strip():
+                            print(f"DEBUG: Received '0' or empty HTML content from '{method_info['name']}'. This method likely failed to generate the invoice.")
+                            continue # Try next method
+                        
+                        print(f"DEBUG: Received HTML content from '{method_info['name']}'. Attempting to convert to PDF.")
+                        # Save the raw HTML to a temporary file
+                        with open(temp_html_path, 'w', encoding='utf-8') as f:
+                            f.write(response.text)
+                        print(f"DEBUG: Raw HTML saved to {temp_html_path}")
+
+                        if pdfkit:
+                            try:
+                                pdfkit.from_file(temp_html_path, save_path)
+                                print(f"DEBUG: HTML successfully converted to PDF and saved to {save_path}")
+                                os.remove(temp_html_path)
+                                return True # Success: HTML converted to PDF
+                            except Exception as e_convert:
+                                print(f"DEBUG: Failed to convert HTML to PDF from '{method_info['name']}': {e_convert}")
+                                # Conversion failed, return path to raw HTML
+                                return temp_html_path # Return path to raw HTML for manual handling
+                        else:
+                            print("DEBUG: pdfkit not found. Cannot convert HTML to PDF.")
+                            # pdfkit not available, return path to raw HTML
+                            return temp_html_path # Return path to raw HTML as it's the best we can do
+                    else:
+                        print(f"DEBUG: Received unexpected content type '{content_type}' from '{method_info['name']}'. Trying next method.")
+                        continue # Try next method
+                else:
+                    print(f"DEBUG: Non-200 status code ({response.status_code}) from '{method_info['name']}'. Trying next method.")
+                    continue # Try next method
+            except requests.exceptions.RequestException as e:
+                print(f"DEBUG: Network error or HTTP error during download via '{method_info['name']}': {e}. Trying next method.")
+                continue # Try next method
+            except Exception as e:
+                print(f"DEBUG: Unexpected error during download via '{method_info['name']}': {e}. Trying next method.")
+                continue # Try next method
+
+        # If all methods fail after trying them
+        raise Exception("Failed to download invoice PDF or HTML using any available method. Please check plugin configuration or try manually from browser.")
