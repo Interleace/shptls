@@ -64,6 +64,17 @@ class StatusChangeDialog(ctk.CTkToplevel):
         ctk.CTkButton(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
         ctk.CTkButton(button_frame, text="Abbrechen", command=self.on_cancel).pack(side="right", padx=5)
 
+                # Buttons für Aktionen
+        self.action_buttons_frame = ctk.CTkFrame(self)
+        self.action_buttons_frame.pack(pady=10, padx=10, fill="x")
+
+        ctk.CTkButton(self.action_buttons_frame, text="Rechnung drucken", command=self.print_invoice).pack(side="left", padx=5)
+        ctk.CTkButton(self.action_buttons_frame, text="Status ändern", command=self.change_order_status).pack(side="left", padx=5)
+        # Add the new green button
+        ctk.CTkButton(self.action_buttons_frame, text="Bestellung bearbeiten", command=self.edit_order,
+                      fg_color="green", hover_color="dark green").pack(side="left", padx=5)
+        ctk.CTkButton(self.action_buttons_frame, text="Bestelldetails exportieren", command=self.export_order_details).pack(side="left", padx=5)
+
     def on_ok(self):
         self.new_status = self.status_combobox.get()
         self.destroy() # Schließt das Dialogfenster
@@ -72,128 +83,10 @@ class StatusChangeDialog(ctk.CTkToplevel):
         self.new_status = None
         self.destroy() # Schließt das Dialogfenster
 
-# KLASSE: EditOrderDialog mit Scrollbar und neuem Adresslayout
-class EditOrderDialog(ctk.CTkToplevel):
-    def __init__(self, parent, order_data):
-        super().__init__(parent)
-        self.title(f"Bestellung {order_data.get('id', 'N/A')} bearbeiten")
-        self.geometry("900x700") # Startbreite erhöhen, um Platz für zwei Adressspalten zu schaffen
-        self.update_idletasks()
-
-        self.order_data = order_data
-        self.edited_data = {} # Dictionary to store changes
-
-        # Verwenden Sie ein CTkScrollableFrame für den Inhalt
-        self.scrollable_frame = ctk.CTkScrollableFrame(self)
-        self.scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Konfigurieren der Spalten im ScrollableFrame für das Hauptlayout
-        self.scrollable_frame.grid_columnconfigure(0, weight=1)
-        self.scrollable_frame.grid_columnconfigure(1, weight=3) # Allgemeine Details Spalte 1
-        self.scrollable_frame.grid_columnconfigure(2, weight=1) # Spalte für Lieferadressüberschrift
-        self.scrollable_frame.grid_columnconfigure(3, weight=3) # Lieferadressdetails Spalte 2
-
-
-        current_row = 0
-
-        # --- General Order Details (Spannt über beide "Hälften" des Dialogs, falls nötig)---
-        ctk.CTkLabel(self.scrollable_frame, text="Allgemeine Details", font=("Roboto", 14, "bold")).grid(row=current_row, column=0, columnspan=4, pady=(10, 5), sticky="w", padx=10)
-        current_row += 1
-
-        # Status
-        ctk.CTkLabel(self.scrollable_frame, text="Status:").grid(row=current_row, column=0, sticky="w", padx=10, pady=2)
-        statuses = ["pending", "processing", "on-hold", "completed", "cancelled", "refunded", "failed"]
-        self.status_var = ctk.StringVar(value=order_data.get('status', ''))
-        self.status_combobox = ctk.CTkComboBox(self.scrollable_frame, values=statuses, variable=self.status_var)
-        self.status_combobox.grid(row=current_row, column=1, sticky="ew", padx=10, pady=2)
-        current_row += 1
-
-        # Total (read-only for now, as line items aren't editable)
-        ctk.CTkLabel(self.scrollable_frame, text="Summe:").grid(row=current_row, column=0, sticky="w", padx=10, pady=2)
-        self.total_entry = ctk.CTkEntry(self.scrollable_frame, textvariable=ctk.StringVar(value=order_data.get('total', '0.00')), state="readonly")
-        self.total_entry.grid(row=current_row, column=1, sticky="ew", padx=10, pady=2)
-        current_row += 1
-
-        # Customer Note
-        ctk.CTkLabel(self.scrollable_frame, text="Kundennotiz:").grid(row=current_row, column=0, sticky="nw", padx=10, pady=2)
-        self.customer_note_textbox = ctk.CTkTextbox(self.scrollable_frame, height=80, wrap="word") # Höhe erhöht
-        self.customer_note_textbox.grid(row=current_row, column=1, sticky="ew", padx=10, pady=2)
-        self.customer_note_textbox.insert("1.0", order_data.get('customer_note', ''))
-        current_row += 1
-
-        # --- Adressblöcke nebeneinander ---
-        # Frame für Rechnungsadresse
-        billing_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
-        billing_frame.grid(row=current_row, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
-        billing_frame.grid_columnconfigure(0, weight=1)
-        billing_frame.grid_columnconfigure(1, weight=3)
-
-        ctk.CTkLabel(billing_frame, text="Rechnungsadresse", font=("Roboto", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(10, 5), sticky="w")
-        self.billing_entries = self._create_address_fields(billing_frame, order_data.get('billing', {}), start_row=1)
-
-
-        # Frame für Lieferadresse
-        shipping_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
-        shipping_frame.grid(row=current_row, column=2, columnspan=2, sticky="nsew", padx=10, pady=10)
-        shipping_frame.grid_columnconfigure(0, weight=1)
-        shipping_frame.grid_columnconfigure(1, weight=3)
-
-        ctk.CTkLabel(shipping_frame, text="Lieferadresse", font=("Roboto", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(10, 5), sticky="w")
-        self.shipping_entries = self._create_address_fields(shipping_frame, order_data.get('shipping', {}), start_row=1)
-
-        current_row += max(len(self.billing_entries), len(self.shipping_entries)) + 1 # Passt die nächste Reihe an
-
-        # --- Buttons (außerhalb des ScrollableFrames, da sie immer sichtbar sein sollten) ---
-        button_frame = ctk.CTkFrame(self, fg_color="transparent")
-        button_frame.pack(pady=10)
-        ctk.CTkButton(button_frame, text="Speichern", command=self.on_save).pack(side="left", padx=10)
-        ctk.CTkButton(button_frame, text="Abbrechen", command=self.on_cancel).pack(side="right", padx=10)
-
-    # _create_address_fields wurde angepasst, um einen `parent_frame` zu akzeptieren
-    def _create_address_fields(self, parent_frame, address_data, start_row):
-        fields = [
-            ("Vorname:", "first_name"), ("Nachname:", "last_name"), ("Firma:", "company"),
-            ("Adresse 1:", "address_1"), ("Adresse 2:", "address_2"),
-            ("Stadt:", "city"), ("Bundesland:", "state"), ("PLZ:", "postcode"),
-            ("Land:", "country"), ("Email:", "email"), ("Telefon:", "phone")
-        ]
-        entries = {}
-        row_counter = start_row
-        for label_text, key in fields:
-            ctk.CTkLabel(parent_frame, text=label_text).grid(row=row_counter, column=0, sticky="w", padx=10, pady=2)
-            entry_var = ctk.StringVar(value=address_data.get(key, ''))
-            entry = ctk.CTkEntry(parent_frame, textvariable=entry_var)
-            entry.grid(row=row_counter, column=1, sticky="ew", padx=10, pady=2)
-            entries[key] = entry_var # Store the StringVar to easily get its value later
-            row_counter += 1
-        return entries
-
-    def on_save(self):
-        # General details
-        self.edited_data['status'] = self.status_var.get()
-        self.edited_data['customer_note'] = self.customer_note_textbox.get("1.0", "end-1c").strip()
-
-        # Billing Address
-        self.edited_data['billing'] = {}
-        for key, var in self.billing_entries.items():
-            self.edited_data['billing'][key] = var.get()
-
-        # Shipping Address
-        self.edited_data['shipping'] = {}
-        for key, var in self.shipping_entries.items():
-            self.edited_data['shipping'][key] = var.get()
-
-        self.destroy()
-
-    def on_cancel(self):
-        self.edited_data = None
-        self.destroy()
-
 
 class HistoryWindow(ctk.CTkToplevel):
     def __init__(self, parent, woo_api):
         super().__init__(parent)
-        self.transient(parent)
 
         self.woo_api = woo_api
         self.orders = []
@@ -270,10 +163,114 @@ class HistoryWindow(ctk.CTkToplevel):
         ctk.CTkButton(self.action_buttons_frame, text="Rechnung drucken", command=self.print_invoice).pack(side="left", padx=5)
         ctk.CTkButton(self.action_buttons_frame, text="Status ändern", command=self.change_order_status).pack(side="left", padx=5)
         ctk.CTkButton(self.action_buttons_frame, text="Bestelldetails exportieren", command=self.export_order_details).pack(side="left", padx=5)
-        ctk.CTkButton(self.action_buttons_frame, text="Bestellung bearbeiten", command=self.edit_order, fg_color="green").pack(side="left", padx=5)
-
 
         self.load_orders() # Initiales Laden der Bestellungen
+
+
+class EditOrderDialog(ctk.CTkToplevel):
+    def __init__(self, parent, order_data):
+        super().__init__(parent)
+        self.title(f"Bestellung #{order_data['id']} bearbeiten")
+        self.order_data = order_data
+        self.updated_order = None
+
+        # Center dialog
+        self.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() / 2) - (self.winfo_width() / 2)
+        y = parent.winfo_y() + (parent.winfo_height() / 2) - (self.winfo_height() / 2)
+        self.geometry(f"600x700+{int(x)}+{int(y)}")
+        self.transient(parent)
+        self.after(0, self.grab_set)
+
+        # Main container
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Notebook for different sections
+        notebook = ttk.Notebook(container)
+        notebook.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Billing Frame
+        billing_frame = ctk.CTkFrame(notebook)
+        notebook.add(billing_frame, text="Rechnungsadresse")
+        self._create_address_form(billing_frame, "billing")
+
+        # Shipping Frame
+        shipping_frame = ctk.CTkFrame(notebook)
+        notebook.add(shipping_frame, text="Lieferadresse")
+        self._create_address_form(shipping_frame, "shipping")
+
+        # Customer Note Frame
+        note_frame = ctk.CTkFrame(notebook)
+        notebook.add(note_frame, text="Kundennotiz")
+        ctk.CTkLabel(note_frame, text="Kundennotiz:").pack(anchor="w", padx=10, pady=(10, 0))
+        self.customer_note = ctk.CTkTextbox(note_frame, height=100)
+        self.customer_note.pack(fill="x", padx=10, pady=5)
+        self.customer_note.insert("1.0", order_data.get('customer_note', ''))
+
+        # Buttons
+        button_frame = ctk.CTkFrame(container)
+        button_frame.pack(pady=10)
+
+        ctk.CTkButton(button_frame, text="Speichern", command=self.on_save, fg_color="green").pack(side="left", padx=5)
+        ctk.CTkButton(button_frame, text="Abbrechen", command=self.destroy).pack(side="right", padx=5)
+
+        # Store form fields
+        self.form_fields = {}
+
+    def _create_address_form(self, frame, address_type):
+        address = self.order_data.get(address_type, {})
+        fields = [
+            ("Vorname", "first_name"),
+            ("Nachname", "last_name"),
+            ("Firma", "company"),
+            ("Adresse 1", "address_1"),
+            ("Adresse 2", "address_2"),
+            ("Stadt", "city"),
+            ("Postleitzahl", "postcode"),
+            ("Land", "country"),
+        ]
+
+        if address_type == "billing":
+            fields.extend([
+                ("Email", "email"),
+                ("Telefon", "phone")
+            ])
+
+        for label, field in fields:
+            row = ctk.CTkFrame(frame, fg_color="transparent")
+            row.pack(fill="x", padx=10, pady=5)
+            ctk.CTkLabel(row, text=label, width=120).pack(side="left")
+            entry = ctk.CTkEntry(row)
+            entry.pack(side="right", fill="x", expand=True, padx=(10, 0))
+            entry.insert(0, address.get(field, ""))
+            self.form_fields[f"{address_type}_{field}"] = entry
+
+    def on_save(self):
+        # Collect updated data
+        updated_data = {
+            "billing": {},
+            "shipping": {},
+            "customer_note": self.customer_note.get("1.0", "end-1c")
+        }
+
+        # Billing fields
+        for field in ["first_name", "last_name", "company", "address_1", "address_2",
+                     "city", "postcode", "country", "email", "phone"]:
+            key = f"billing_{field}"
+            if key in self.form_fields:
+                updated_data["billing"][field] = self.form_fields[key].get()
+
+        # Shipping fields
+        for field in ["first_name", "last_name", "company", "address_1", "address_2",
+                     "city", "postcode", "country"]:
+            key = f"shipping_{field}"
+            if key in self.form_fields:
+                updated_data["shipping"][field] = self.form_fields[key].get()
+
+        self.updated_order = updated_data
+        self.destroy()
+
 
     def show_loading(self, show):
         if show:
@@ -621,39 +618,6 @@ class HistoryWindow(ctk.CTkToplevel):
         else:
             msgbox.showinfo("Abgebrochen", "Statusänderung abgebrochen.")
 
-    def edit_order(self):
-        if not self.current_order:
-            msgbox.showwarning("Warnung", "Bitte wählen Sie eine Bestellung aus, die bearbeitet werden soll.")
-            return
-
-        dialog = EditOrderDialog(self, self.current_order)
-        self.wait_window(dialog)
-
-        edited_data = dialog.edited_data
-
-        if edited_data:
-            def update_order_in_background():
-                try:
-                    self.after(0, lambda: self.show_loading(True))
-                    order_id = self.current_order.get('id')
-                    # Prepare data for API: only send fields that are editable
-                    update_payload = {
-                        'status': edited_data.get('status', self.current_order.get('status')),
-                        'customer_note': edited_data.get('customer_note', self.current_order.get('customer_note')),
-                        'billing': edited_data.get('billing', self.current_order.get('billing')),
-                        'shipping': edited_data.get('shipping', self.current_order.get('shipping')),
-                    }
-                    self.woo_api.update_order(order_id, update_payload)
-                    self.after(0, lambda: msgbox.showinfo("Erfolg", f"Bestellung {order_id} erfolgreich aktualisiert."))
-                    self.after(0, self.load_orders) # Reload orders to show changes
-                    self.after(0, lambda: self.show_loading(False))
-                except Exception as e:
-                    self.after(0, lambda: msgbox.showerror("Fehler", f"Fehler beim Aktualisieren der Bestellung: {e}"))
-                    self.after(0, lambda: self.show_loading(False))
-
-            threading.Thread(target=update_order_in_background, daemon=True).start()
-        else:
-            msgbox.showinfo("Abgebrochen", "Bestellbearbeitung abgebrochen.")
 
     def export_order_details(self):
         if not hasattr(self, 'current_order') or not self.current_order:
@@ -680,3 +644,29 @@ class HistoryWindow(ctk.CTkToplevel):
 
         except Exception as e:
             msgbox.showerror("Export Fehler", f"Fehler beim Exportieren der Bestelldetails: {e}")
+
+
+    def edit_order(self):
+        if not self.current_order:
+            msgbox.showwarning("Warnung", "Bitte wählen Sie eine Bestellung aus, die bearbeitet werden soll.")
+            return
+
+        dialog = EditOrderDialog(self, self.current_order)
+        self.wait_window(dialog)
+
+        if dialog.updated_order:
+            order_id = self.current_order['id']
+            updated_data = dialog.updated_order
+
+            def update_order_in_background():
+                try:
+                    self.after(0, lambda: self.show_loading(True))
+                    self.woo_api.update_order(order_id, updated_data)
+                    self.after(0, lambda: msgbox.showinfo("Erfolg", f"Bestellung {order_id} wurde aktualisiert."))
+                    self.after(0, self.load_orders)  # Reload orders to reflect changes
+                except Exception as e:
+                    self.after(0, lambda: msgbox.showerror("Fehler", f"Fehler beim Aktualisieren der Bestellung: {e}"))
+                finally:
+                    self.after(0, lambda: self.show_loading(False))
+
+            threading.Thread(target=update_order_in_background, daemon=True).start()

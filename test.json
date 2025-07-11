@@ -1,0 +1,184 @@
+{
+    "id": 4228,
+    "parent_id": 0,
+    "number": "4228",
+    "order_key": "wc_order_68447f474de4b",
+    "created_via": "checkout",
+    "version": "3.0.7",
+    "status": "completed",
+    "currency": "EUR",
+    "date_created": "2025-06-07T18:04:55",
+    "date_created_gmt": "2025-06-07T18:04:55",
+    "date_modified": "2025-06-09T17:36:01",
+    "date_modified_gmt": "2025-06-09T17:36:01",
+    "discount_total": "0.00",
+    "discount_tax": "0.00",
+    "shipping_total": "13.00",
+    "shipping_tax": "0.91",
+    "cart_tax": "1.83",
+    "total": "41.91",
+    "total_tax": "2.74",
+    "prices_include_tax": true,
+    "customer_id": 0,
+    "customer_ip_address": "2a02:1210:1e3d:8300:39b4:e08f:c57c:759b",
+    "customer_user_agent": "mozilla/5.0 (iphone; cpu iphone os 18_5 like mac os x) applewebkit/605.1.15 (khtml, like gecko) version/18.5 mobile/15e148 safari/604.1",
+    "customer_note": "",
+    "billing": {
+        "first_name": "Sandra",
+        "last_name": "Püntener",
+        "company": "",
+        "address_1": "Fahrbachweg 8b",
+        "address_2": "",
+        "city": "Künten",
+        "state": "",
+        "postcode": "5444",
+        "country": "CH",
+        "email": "haarkunstatelier@gmx.ch",
+        "phone": "0795134608"
+    },
+    "shipping": {
+        "first_name": "Sandra",
+        "last_name": "Püntener",
+        "company": "",
+        "address_1": "Fahrbachweg 8b",
+        "address_2": "",
+        "city": "Künten",
+        "state": "",
+        "postcode": "5444",
+        "country": "CH"
+    },
+    "payment_method": "paypal",
+    "payment_method_title": "PayPal",
+    "transaction_id": "9S805536BF295803S",
+    "date_paid": "2025-06-07T18:05:48",
+    "date_paid_gmt": "2025-06-07T18:05:48",
+    "date_completed": "2025-06-09T17:36:01",
+    "date_completed_gmt": "2025-06-09T17:36:01",
+    "cart_hash": "f775323f7239ec7e20765b489965b18c",
+    "meta_data": [
+        {
+            "id": 94741,
+            "key": "Payer PayPal address",
+            "value": "sandra.puentener@gmx.ch"
+        },
+        {
+            "id": 94742,
+            "key": "Payer first name",
+            "value": "Sandra"
+        },
+        {
+            "id": 94743,
+            "key": "Payer last name",
+            "value": ""
+        },
+        {
+            "id": 94744,
+            "key": "Payment type",
+            "value": "instant"
+        },
+        {
+            "id": 94745,
+            "key": "_paypal_status",
+            "value": "completed"
+        },
+        {
+            "id": 94748,
+            "key": "_order_stock_reduced",
+            "value": "yes"
+        },
+        {
+            "id": 94749,
+            "key": "PayPal Transaction Fee",
+            "value": "2.48"
+        },
+        {
+            "id": 94751,
+            "key": "_wcdn_invoice_number",
+            "value": "KABBUCH2158"
+        },
+        {
+            "id": 94753,
+            "key": "_wcdn_invoice_date",
+            "value": "1749486754"
+        },
+        {
+            "id": 94757,
+            "key": "_download_permissions_granted",
+            "value": "yes"
+        }
+    ],
+    "line_items": [
+        {
+            "id": 6354,
+            "name": "Die verborgene Weisheit der Kabbala",
+            "product_id": 18,
+            "variation_id": 0,
+            "quantity": 2,
+            "tax_class": "reduced-rate",
+            "subtotal": "26.17",
+            "subtotal_tax": "1.83",
+            "total": "26.17",
+            "total_tax": "1.83",
+            "taxes": [
+                {
+                    "id": 5,
+                    "total": "1.83",
+                    "subtotal": "1.83"
+                }
+            ],
+            "meta_data": [],
+            "sku": "9781086208863",
+            "price": 13.085
+        }
+    ],
+    "tax_lines": [
+        {
+            "id": 6356,
+            "rate_code": "DE-MWST.7%-1",
+            "rate_id": 5,
+            "label": "MwSt.7%",
+            "compound": false,
+            "tax_total": "1.83",
+            "shipping_tax_total": "0.91",
+            "meta_data": []
+        }
+    ],
+    "shipping_lines": [
+        {
+            "id": 6355,
+            "method_title": "Versandkostenpauschale",
+            "method_id": "flat_rate:13",
+            "total": "13.00",
+            "total_tax": "0.91",
+            "taxes": [
+                {
+                    "id": 5,
+                    "total": "0.91",
+                    "subtotal": ""
+                }
+            ],
+            "meta_data": [
+                {
+                    "id": 42107,
+                    "key": "Positionen",
+                    "value": "Die verborgene Weisheit der Kabbala &times; 2"
+                }
+            ]
+        }
+    ],
+    "fee_lines": [],
+    "coupon_lines": [],
+    "refunds": [],
+    "_links": {
+        "self": [
+            {
+                "href": "https://www.kabbalabuch.info/wp-json/wc/v2/orders/4228"
+            }
+        ],
+        "collection": [
+            {
+                "href": "https://www.kabbalabuch.info/wp-json/wc/v2/orders"
+            }
+        ]
+    }
+}

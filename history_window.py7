@@ -72,12 +72,12 @@ class StatusChangeDialog(ctk.CTkToplevel):
         self.new_status = None
         self.destroy() # Schließt das Dialogfenster
 
-# KLASSE: EditOrderDialog mit Scrollbar und neuem Adresslayout
+# NEUE KLASSE: EditOrderDialog mit Scrollbar
 class EditOrderDialog(ctk.CTkToplevel):
     def __init__(self, parent, order_data):
         super().__init__(parent)
         self.title(f"Bestellung {order_data.get('id', 'N/A')} bearbeiten")
-        self.geometry("900x700") # Startbreite erhöhen, um Platz für zwei Adressspalten zu schaffen
+        self.geometry("800x700") # Startbreite erhöhen
         self.update_idletasks()
 
         self.order_data = order_data
@@ -87,17 +87,14 @@ class EditOrderDialog(ctk.CTkToplevel):
         self.scrollable_frame = ctk.CTkScrollableFrame(self)
         self.scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Konfigurieren der Spalten im ScrollableFrame für das Hauptlayout
+        # Konfigurieren der Spalten im ScrollableFrame
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
-        self.scrollable_frame.grid_columnconfigure(1, weight=3) # Allgemeine Details Spalte 1
-        self.scrollable_frame.grid_columnconfigure(2, weight=1) # Spalte für Lieferadressüberschrift
-        self.scrollable_frame.grid_columnconfigure(3, weight=3) # Lieferadressdetails Spalte 2
-
+        self.scrollable_frame.grid_columnconfigure(1, weight=3) # Inhaltspalte breiter
 
         current_row = 0
 
-        # --- General Order Details (Spannt über beide "Hälften" des Dialogs, falls nötig)---
-        ctk.CTkLabel(self.scrollable_frame, text="Allgemeine Details", font=("Roboto", 14, "bold")).grid(row=current_row, column=0, columnspan=4, pady=(10, 5), sticky="w", padx=10)
+        # --- General Order Details ---
+        ctk.CTkLabel(self.scrollable_frame, text="Allgemeine Details", font=("Roboto", 14, "bold")).grid(row=current_row, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=10)
         current_row += 1
 
         # Status
@@ -121,35 +118,23 @@ class EditOrderDialog(ctk.CTkToplevel):
         self.customer_note_textbox.insert("1.0", order_data.get('customer_note', ''))
         current_row += 1
 
-        # --- Adressblöcke nebeneinander ---
-        # Frame für Rechnungsadresse
-        billing_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
-        billing_frame.grid(row=current_row, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
-        billing_frame.grid_columnconfigure(0, weight=1)
-        billing_frame.grid_columnconfigure(1, weight=3)
+        # --- Billing Address ---
+        ctk.CTkLabel(self.scrollable_frame, text="Rechnungsadresse", font=("Roboto", 14, "bold")).grid(row=current_row, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=10)
+        current_row += 1
+        self.billing_entries, current_row = self._create_address_fields(self.scrollable_frame, order_data.get('billing', {}), current_row)
 
-        ctk.CTkLabel(billing_frame, text="Rechnungsadresse", font=("Roboto", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(10, 5), sticky="w")
-        self.billing_entries = self._create_address_fields(billing_frame, order_data.get('billing', {}), start_row=1)
+        # --- Shipping Address ---
+        ctk.CTkLabel(self.scrollable_frame, text="Lieferadresse", font=("Roboto", 14, "bold")).grid(row=current_row, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=10)
+        current_row += 1
+        self.shipping_entries, current_row = self._create_address_fields(self.scrollable_frame, order_data.get('shipping', {}), current_row)
 
 
-        # Frame für Lieferadresse
-        shipping_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
-        shipping_frame.grid(row=current_row, column=2, columnspan=2, sticky="nsew", padx=10, pady=10)
-        shipping_frame.grid_columnconfigure(0, weight=1)
-        shipping_frame.grid_columnconfigure(1, weight=3)
-
-        ctk.CTkLabel(shipping_frame, text="Lieferadresse", font=("Roboto", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(10, 5), sticky="w")
-        self.shipping_entries = self._create_address_fields(shipping_frame, order_data.get('shipping', {}), start_row=1)
-
-        current_row += max(len(self.billing_entries), len(self.shipping_entries)) + 1 # Passt die nächste Reihe an
-
-        # --- Buttons (außerhalb des ScrollableFrames, da sie immer sichtbar sein sollten) ---
-        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # --- Buttons ---
+        button_frame = ctk.CTkFrame(self, fg_color="transparent") # Buttons outside scrollable frame
         button_frame.pack(pady=10)
         ctk.CTkButton(button_frame, text="Speichern", command=self.on_save).pack(side="left", padx=10)
         ctk.CTkButton(button_frame, text="Abbrechen", command=self.on_cancel).pack(side="right", padx=10)
 
-    # _create_address_fields wurde angepasst, um einen `parent_frame` zu akzeptieren
     def _create_address_fields(self, parent_frame, address_data, start_row):
         fields = [
             ("Vorname:", "first_name"), ("Nachname:", "last_name"), ("Firma:", "company"),
@@ -166,7 +151,7 @@ class EditOrderDialog(ctk.CTkToplevel):
             entry.grid(row=row_counter, column=1, sticky="ew", padx=10, pady=2)
             entries[key] = entry_var # Store the StringVar to easily get its value later
             row_counter += 1
-        return entries
+        return entries, row_counter
 
     def on_save(self):
         # General details
@@ -193,7 +178,6 @@ class EditOrderDialog(ctk.CTkToplevel):
 class HistoryWindow(ctk.CTkToplevel):
     def __init__(self, parent, woo_api):
         super().__init__(parent)
-        self.transient(parent)
 
         self.woo_api = woo_api
         self.orders = []

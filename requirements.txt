@@ -5,3 +5,4 @@ tkinter-page
 customtkinter
 pillow
 woocommerce
+jinja2

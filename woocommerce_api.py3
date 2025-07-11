@@ -74,54 +74,13 @@ class WooCommerceAPI:
         except Exception as e:
             return False, str(e)
 
-    def get_products(self, **kwargs): # Use kwargs to accept params like page, per_page, search, sku
-        """Produkte abrufen"""
-        try:
-            return self._make_request('GET', 'products', params=kwargs)
-        except Exception as e:
-            print(f"Fehler beim Abrufen der Produkte: {e}")
-            return []
-
-    def create_order(self, order_data):
-        """Bestellung erstellen"""
-        try:
-            return self._make_request('POST', 'orders', order_data)
-        except Exception as e:
-            raise Exception(f"Fehler beim Erstellen der Bestellung: {str(e)}")
-
     def get_orders(self, **kwargs):
-        """Ruft eine Liste von Bestellungen ab und transformiert die Daten."""
+        """Ruft eine Liste von Bestellungen ab."""
         try:
-            orders = self._make_request('GET', 'orders', params=kwargs)
-            return [self._transform_order(order) for order in orders] if orders else []
+            return self._make_request('GET', 'orders', params=kwargs)
         except Exception as e:
             print(f"Fehler beim Abrufen der Bestellungen: {e}")
             return []
-
-    def _transform_order(self, order_data):
-        """Bereinigt und transformiert einzelne Bestelldaten."""
-        # Sicherstellen, dass 'billing' und 'shipping' existieren
-        order_data.setdefault('billing', {})
-        order_data.setdefault('shipping', {})
-
-        # Leere Namen durch "Gast" ersetzen (nur wenn beide fehlen)
-        billing = order_data['billing']
-        if not billing.get('first_name') and not billing.get('last_name'):
-            billing['first_name'] = "[Scanner]"
-
-        # Standardwerte für kritische Felder setzen
-        #order_data.setdefault('status', 'unknown')
-        #order_data.setdefault('total', '0.00')
-        #order_data.setdefault('currency', 'EUR')
-        #order_data.setdefault('currency_symbol', '€')
-
-        # Adressdaten bereinigen (Leerstrings entfernen)
-        #for address_type in ['billing', 'shipping']:
-        #    address = order_data[address_type]
-        #    for field in ['address_1', 'address_2', 'city', 'state', 'postcode']:
-        #        address[field] = address.get(field, '').strip()
-
-        return order_data
 
     def update_order_status(self, order_id, new_status):
         """Aktualisiert den Status einer bestimmten Bestellung."""
@@ -437,10 +396,3 @@ Germany
             return self._make_request('PUT', f'orders/{order_id}', updated_order)
         except Exception as e:
             raise Exception(f"Fehler beim Aktualisieren der Bestellung: {e}")
-
-    def update_order(self, order_id, data):
-        """Aktualisiert eine bestehende Bestellung mit den gegebenen Daten."""
-        try:
-            return self._make_request('PUT', f'orders/{order_id}', data)
-        except Exception as e:
-            raise Exception(f"Fehler beim Aktualisieren der Bestellung {order_id}: {e}")
